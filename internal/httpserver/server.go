@@ -95,7 +95,7 @@ func authenticate(disabled bool, v auth.Verifier, next http.Handler) http.Handle
 			return
 		}
 		if disabled {
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, auth.Principal{Subject: "local-development", Scopes: map[string]struct{}{"party.resolve": {}, "party.roles.read": {}, "party.roles.write": {}, "party.roles.transition": {}, "party.relationships.read": {}, "party.relationships.write": {}}})))
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, auth.Principal{Subject: "local-development", Scopes: map[string]struct{}{"party.resolve": {}, "party.read": {}, "party.roles.read": {}, "party.roles.write": {}, "party.roles.transition": {}, "party.relationships.read": {}, "party.relationships.write": {}}})))
 			return
 		}
 		scheme, token, ok := strings.Cut(strings.TrimSpace(r.Header.Get("Authorization")), " ")

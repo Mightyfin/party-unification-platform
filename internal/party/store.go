@@ -19,6 +19,7 @@ var ErrInvalidRole = errors.New("party resolution role is invalid")
 
 type database interface {
 	Begin(context.Context) (pgx.Tx, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
 }
 type Store struct {
 	db  database
@@ -50,7 +51,24 @@ type Resolution struct {
 	Outcome  string  `json:"outcome"`
 	ReviewID *string `json:"review_id,omitempty"`
 }
+type Party struct {
+	ID          string `json:"id"`
+	PartyType   string `json:"party_type"`
+	DisplayName string `json:"display_name"`
+}
 type Command struct{ ActorSubject, CorrelationID string }
+
+func (s *Store) Get(ctx context.Context, tenantID, environment, partyID string) (Party, error) {
+	var out Party
+	err := s.db.QueryRow(ctx, `SELECT DISTINCT p.public_id,p.party_type,p.display_name
+		FROM parties p JOIN party_aliases a ON a.party_id=p.id
+		WHERE p.public_id=$1 AND a.tenant_id=$2 AND a.environment=$3`, partyID, tenantID, environment).
+		Scan(&out.ID, &out.PartyType, &out.DisplayName)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Party{}, ErrNotFound
+	}
+	return out, err
+}
 
 func (s *Store) Resolve(ctx context.Context, cmd Command, in ResolutionRequest) (Resolution, error) {
 	legacyClassification := strings.ToUpper(strings.TrimSpace(in.RoleType))

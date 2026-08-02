@@ -12,6 +12,17 @@ import (
 )
 
 func registerLifecycleRoutes(mux *http.ServeMux, authDisabled bool, store *party.Store, logger *slog.Logger) {
+	mux.HandleFunc("GET /v1/parties/{party_id}", func(w http.ResponseWriter, r *http.Request) {
+		_, scope, ok := authorizeLifecycle(w, r, authDisabled, "party.read")
+		if !ok {
+			return
+		}
+		out, err := store.Get(r.Context(), scope.TenantID, scope.Environment, r.PathValue("party_id"))
+		if lifecycleError(w, r, logger, err) {
+			return
+		}
+		write(w, http.StatusOK, out)
+	})
 	mux.HandleFunc("GET /v1/parties/{party_id}/roles", func(w http.ResponseWriter, r *http.Request) {
 		principal, scope, ok := authorizeLifecycle(w, r, authDisabled, "party.roles.read")
 		if !ok {
@@ -125,7 +136,8 @@ func authorizeLifecycle(w http.ResponseWriter, r *http.Request, disabled bool, r
 		return auth.Principal{}, party.Scope{}, false
 	}
 	s := party.Scope{TenantID: strings.TrimSpace(r.Header.Get("X-Acting-Tenant-Id")), Environment: strings.TrimSpace(r.Header.Get("X-Acting-Environment"))}
-	if !safeValue.MatchString(s.TenantID) || (s.Environment != "sandbox" && s.Environment != "production") {
+	validEnvironment := s.Environment == "sandbox" || s.Environment == "production" || disabled && s.Environment == "local"
+	if !safeValue.MatchString(s.TenantID) || !validEnvironment {
 		problem(w, 400, "invalid_scope", "Acting tenant and environment are required.")
 		return auth.Principal{}, party.Scope{}, false
 	}
