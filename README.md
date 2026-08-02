@@ -22,3 +22,9 @@ docker compose up --build
 API: `http://localhost:18086`. PostgreSQL: `localhost:15436`.
 
 See `docs/BOUNDARIES.md` for ownership and integration rules.
+
+## Canonical business roles
+
+`CUSTOMER`, `PARTNER`, `SUPPLIER`, `EMPLOYEE`, `AGENT`, `INVESTOR_FUNDER`, and `REGULATOR` are effective-dated business roles. A party may hold several concurrently. Staff administration permissions remain in Keycloak and are never inferred from `EMPLOYEE`.
+
+EFaaS participants are represented as `CUSTOMER / EFAAS / PARTNER`. Ecosystem facts such as employment, supply, aggregation, funding and regulation are effective-dated party relationships. Moving from an EFaaS tenant into MightyFin direct Embedded Finance ends only the source participation and creates a new direct participation with independent consent and eligibility evidence.
