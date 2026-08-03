@@ -39,8 +39,7 @@ func New(address, environment string, authDisabled bool, verifier auth.Verifier,
 			return
 		}
 		var in party.ResolutionRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
-			problem(w, 400, "invalid_json", "Request body is invalid.")
+		if !decode(w, r, &in) {
 			return
 		}
 		in.TenantID = strings.TrimSpace(r.Header.Get("X-Acting-Tenant-Id"))

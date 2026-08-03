@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -154,7 +155,9 @@ func command(r *http.Request, p auth.Principal) party.Command {
 	return party.Command{ActorSubject: p.Subject, CorrelationID: cor}
 }
 func decode(w http.ResponseWriter, r *http.Request, out any) bool {
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(out); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		problem(w, 400, "invalid_json", "Request body is invalid.")
 		return false
 	}
