@@ -19,7 +19,10 @@ type Verifier interface {
 	Verify(context.Context, string) (Principal, error)
 }
 type OIDCVerifier struct{ verifier *oidc.IDTokenVerifier }
-type claims struct{ Subject, Scope string }
+type claims struct {
+	Subject string `json:"sub"`
+	Scope   string `json:"scope"`
+}
 
 func New(ctx context.Context, issuer, audience string) (*OIDCVerifier, error) {
 	p, err := oidc.NewProvider(ctx, issuer)
