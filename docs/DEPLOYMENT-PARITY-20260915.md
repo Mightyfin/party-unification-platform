@@ -80,3 +80,18 @@ Validation: `go test ./...` with `PARTY_LOOKUP_TEST_DATABASE_URL` pointing to
 disposable PostgreSQL passed, as did `go vet ./...`. These changes are not yet
 deployed. Verification-state provenance, connected bank-account checks and the
 remaining Green financial lifecycle are still open; no Green data was changed.
+
+## Resolution does not manufacture compliance approval
+
+New roles created by identity resolution now start `PENDING / UNVERIFIED`, rather
+than the release's unconditional `APPROVED / IDENTITY_VERIFIED`. Matching or
+registering an identity does not assess the new tenant/product relationship.
+Existing roles and approvals are not backfilled or modified. The PostgreSQL
+lifecycle regression asserts these initial values. All Party tests and vet pass;
+the eFaaS backend Party client package tests also pass. That client consumes only
+the resolution identity/outcome, not role approval flags.
+
+This fixes resolution only. Explicit role assignment and participation transfer
+still need verification-evidence provenance controls before they can be treated
+as compliance decisions. They remain separate from lender approval and funding.
+No deployment or Green financial write is claimed by this change.

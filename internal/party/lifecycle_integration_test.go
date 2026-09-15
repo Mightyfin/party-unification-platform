@@ -61,6 +61,9 @@ func TestLifecycleDatabaseRegression(t *testing.T) {
 		t.Fatal(roles, err)
 	}
 	role := roles[0]
+	if role.OnboardingStatus != "PENDING" || role.VerificationLevel != "UNVERIFIED" {
+		t.Fatal("identity resolution manufactured an approval", role.OnboardingStatus, role.VerificationLevel)
+	}
 	for _, action := range []string{"suspend", "activate"} {
 		r, err := s.ChangeRole(ctx, cmd, scope, role.ID, LifecycleRequest{Action: action, Reason: "Synthetic lifecycle test"})
 		if err != nil || r.ID != role.ID {

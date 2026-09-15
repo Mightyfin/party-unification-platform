@@ -183,7 +183,9 @@ func (s *Store) Resolve(ctx context.Context, cmd Command, in ResolutionRequest) 
 			return Resolution{}, err
 		}
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,created_by) SELECT $1,id,$2,$3,$4,$5,$6,$7,'APPROVED','IDENTITY_VERIFIED',$8 FROM parties WHERE public_id=$9 ON CONFLICT DO NOTHING`, newID("pro"), in.TenantID, in.Environment, roleType, product, legacyClassification, channel, cmd.ActorSubject, partyID)
+	// Resolution establishes identity linkage, not a compliance or product decision.
+	// Even a matched identifier does not prove this new relationship is approved.
+	_, err = tx.Exec(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,created_by) SELECT $1,id,$2,$3,$4,$5,$6,$7,'PENDING','UNVERIFIED',$8 FROM parties WHERE public_id=$9 ON CONFLICT DO NOTHING`, newID("pro"), in.TenantID, in.Environment, roleType, product, legacyClassification, channel, cmd.ActorSubject, partyID)
 	if err != nil {
 		return Resolution{}, err
 	}
