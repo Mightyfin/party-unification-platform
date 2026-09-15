@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+var ErrTransferAuthority = errors.New("explicit participation transfer authority required")
+
 // Lock the membership evidence used by a write in that same transaction. A
 // caller cannot create access merely by knowing a global canonical party ID.
 func requireMembership(ctx context.Context, tx pgx.Tx, scope Scope, ids ...string) error {

@@ -64,7 +64,11 @@ type Record struct {
 	DisplayName string `json:"display_name"`
 	Status      string `json:"status"`
 }
-type Command struct{ ActorSubject, CorrelationID string }
+type Command struct {
+	ActorSubject, CorrelationID string
+	// Supplied by authenticated transport, never from a request body.
+	ParticipationTransferAuthorized bool
+}
 
 // GetForTenant exposes a canonical party only where it has an active tenant
 // alias or role. Global Party IDs must never bypass tenant/environment access.

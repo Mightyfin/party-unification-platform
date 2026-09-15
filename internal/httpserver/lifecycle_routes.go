@@ -107,11 +107,17 @@ func registerLifecycleRoutes(mux *http.ServeMux, authDisabled bool, store *party
 		if !ok {
 			return
 		}
+		if !principal.CanTransferParticipation(scope.Environment) {
+			problem(w, 403, "transfer_authority_required", "This action requires explicit cross-programme authority.")
+			return
+		}
 		var in party.ParticipationTransitionRequest
 		if !decode(w, r, &in) {
 			return
 		}
-		out, err := store.TransitionParticipation(r.Context(), command(r, principal), scope, r.PathValue("party_id"), in)
+		cmd := command(r, principal)
+		cmd.ParticipationTransferAuthorized = true
+		out, err := store.TransitionParticipation(r.Context(), cmd, scope, r.PathValue("party_id"), in)
 		if lifecycleError(w, r, logger, err) {
 			return
 		}
@@ -129,6 +135,10 @@ func authorizeLifecycle(w http.ResponseWriter, r *http.Request, disabled bool, r
 	validEnvironment := s.Environment == "sandbox" || s.Environment == "production" || disabled && s.Environment == "local"
 	if !safeValue.MatchString(s.TenantID) || !validEnvironment {
 		problem(w, 400, "invalid_scope", "Acting tenant and environment are required.")
+		return auth.Principal{}, party.Scope{}, false
+	}
+	if (p.TenantID != "" && p.TenantID != s.TenantID) || (p.Environment != "" && p.Environment != s.Environment) {
+		problem(w, 403, "scope_mismatch", "The credential does not allow this tenant or environment.")
 		return auth.Principal{}, party.Scope{}, false
 	}
 	return p, s, true
@@ -158,6 +168,8 @@ func lifecycleError(w http.ResponseWriter, r *http.Request, logger *slog.Logger,
 		return false
 	case errors.Is(err, party.ErrNotFound):
 		problem(w, 404, "not_found", "The party resource was not found in this scope.")
+	case errors.Is(err, party.ErrTransferAuthority):
+		problem(w, 403, "transfer_authority_required", "This action requires explicit cross-programme authority.")
 	case errors.Is(err, party.ErrConflict):
 		problem(w, 409, "conflict", "An active role or relationship already exists in this scope.")
 	case errors.Is(err, party.ErrInvalidTransition):

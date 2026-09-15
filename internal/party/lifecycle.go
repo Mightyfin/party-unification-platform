@@ -235,6 +235,9 @@ func (s *Store) ChangeRelationship(ctx context.Context, cmd Command, scope Scope
 	return out, tx.Commit(ctx)
 }
 func (s *Store) TransitionParticipation(ctx context.Context, cmd Command, scope Scope, partyID string, in ParticipationTransitionRequest) (ParticipationTransition, error) {
+	if !cmd.ParticipationTransferAuthorized || cmd.ActorSubject == "" {
+		return ParticipationTransition{}, ErrTransferAuthority
+	}
 	if in.SourceRoleID == "" || in.SourceTenantID == "" || in.SourceTenantID == scope.TenantID || in.TargetProduct != "EMBEDDED_FINANCE" || in.TargetClassification == "" || in.ConsentReference == "" || in.EligibilityReference == "" || in.Reason == "" {
 		return ParticipationTransition{}, ErrInvalidTransition
 	}

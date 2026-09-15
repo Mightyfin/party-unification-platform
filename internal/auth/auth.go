@@ -9,8 +9,15 @@ import (
 )
 
 type Principal struct {
-	Subject string
-	Scopes  map[string]struct{}
+	Subject               string
+	Scopes                map[string]struct{}
+	TenantID, Environment string
+	Roles                 map[string]struct{}
+}
+
+func (p Principal) CanTransferParticipation(environment string) bool {
+	_, role := p.Roles["party-participation-transfer"]
+	return p.Subject != "" && p.TenantID == "" && p.Environment == environment && (environment == "sandbox" || environment == "production") && role && p.HasScope("party.participation.transfer") && p.HasScope("party.roles.transition")
 }
 
 func (p Principal) HasScope(s string) bool { _, ok := p.Scopes[s]; return ok }
@@ -20,8 +27,13 @@ type Verifier interface {
 }
 type OIDCVerifier struct{ verifier *oidc.IDTokenVerifier }
 type claims struct {
-	Subject string `json:"sub"`
-	Scope   string `json:"scope"`
+	Subject     string `json:"sub"`
+	Scope       string `json:"scope"`
+	TenantID    string `json:"tenant_id"`
+	Environment string `json:"environment"`
+	RealmAccess struct {
+		Roles []string `json:"roles"`
+	} `json:"realm_access"`
 }
 
 func New(ctx context.Context, issuer, audience string) (*OIDCVerifier, error) {
@@ -40,7 +52,10 @@ func (v *OIDCVerifier) Verify(ctx context.Context, raw string) (Principal, error
 	if err = t.Claims(&c); err != nil || c.Subject == "" {
 		return Principal{}, fmt.Errorf("invalid claims")
 	}
-	p := Principal{Subject: c.Subject, Scopes: map[string]struct{}{}}
+	p := Principal{Subject: c.Subject, TenantID: c.TenantID, Environment: c.Environment, Scopes: map[string]struct{}{}, Roles: map[string]struct{}{}}
+	for _, r := range c.RealmAccess.Roles {
+		p.Roles[r] = struct{}{}
+	}
 	for _, s := range strings.Fields(c.Scope) {
 		p.Scopes[s] = struct{}{}
 	}

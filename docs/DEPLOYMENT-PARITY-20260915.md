@@ -48,3 +48,14 @@ relationship creation stop before insertion, and checks environment, restricted
 identity, inactive alias and future-role rejection. Domain entry points also
 validate request type and actor, not only HTTP handlers. Cross-tenant transition
 authority and onboarding/verification provenance remain separate open checks.
+
+Cross-programme transitions now require a tenant-free credential with matching
+environment, `party-participation-transfer` role, `party.participation.transfer`
+scope and the existing `party.roles.transition` scope. The domain command also
+requires a transport-derived authority flag; JSON cannot set it. Tests prove
+ordinary/tenant/wrong-environment callers and missing roles/scopes fail before
+storage. No new role/scope was assigned to live users or clients. This restricts
+the previously over-broad path rather than granting new financial authority.
+Lifecycle requests also reject tenant/environment headers that contradict token
+claims. Full authorised transition PostgreSQL regression and verification-state
+provenance still need testing before deployment.
