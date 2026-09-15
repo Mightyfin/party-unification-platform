@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	ErrConflict = errors.New("party alias conflicts with request")
-	ErrNotFound = errors.New("party not found")
+	ErrConflict    = errors.New("party alias conflicts with request")
+	ErrNotFound    = errors.New("party not found")
+	ErrInvalidRole = errors.New("party resolution role is invalid")
 )
 
 type database interface {
@@ -83,11 +84,22 @@ WHERE p.public_id=$1
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Record{}, ErrNotFound
 	}
-	if err == nil { record.ID = record.PartyID }
+	if err == nil {
+		record.ID = record.PartyID
+	}
 	return record, err
 }
 
 func (s *Store) Resolve(ctx context.Context, cmd Command, in ResolutionRequest) (Resolution, error) {
+	legacyClassification := strings.ToUpper(strings.TrimSpace(in.RoleType))
+	roleType, product, channel := legacyClassification, strings.ToUpper(strings.TrimSpace(in.Product)), "DIRECT"
+	if product == "EFAAS" {
+		roleType = "CUSTOMER"
+		channel = "PARTNER"
+	}
+	if !validRoles[roleType] || !validProducts[product] {
+		return Resolution{}, ErrInvalidRole
+	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return Resolution{}, err
@@ -167,7 +179,7 @@ func (s *Store) Resolve(ctx context.Context, cmd Command, in ResolutionRequest) 
 			return Resolution{}, err
 		}
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO party_roles(party_id,tenant_id,environment,role_type,product) SELECT id,$1,$2,$3,$4 FROM parties WHERE public_id=$5 ON CONFLICT DO NOTHING`, in.TenantID, in.Environment, in.RoleType, in.Product, partyID)
+	_, err = tx.Exec(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,created_by) SELECT $1,id,$2,$3,$4,$5,$6,$7,'APPROVED','IDENTITY_VERIFIED',$8 FROM parties WHERE public_id=$9 ON CONFLICT DO NOTHING`, newID("pro"), in.TenantID, in.Environment, roleType, product, legacyClassification, channel, cmd.ActorSubject, partyID)
 	if err != nil {
 		return Resolution{}, err
 	}

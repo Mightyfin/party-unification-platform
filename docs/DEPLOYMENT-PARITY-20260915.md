@@ -21,3 +21,21 @@ Before deployment, reconcile the release's lifecycle implementation, routes,
 tests and migration 2 into this repository, preserve existing consumers, run
 regression tests and retest the connected owner lookup. Existing local changes
 to Dockerfile, README, dependencies and CI were not included in this work.
+
+## Repository reconciliation
+
+Imported the deployed lifecycle domain, role/relationship routes, decoder tests,
+validation tests and migration 2. Retained repository `GetForTenant` rather than
+reintroducing the release's alias-only lookup. Added the deployed JWT `sub`
+mapping and migration-2-compatible role creation to `Resolve`. Migration 1 is
+identical to the release after line-ending normalization; database/config
+differences were formatting-only. No live migration or deployment was performed.
+
+Existing deployed behavior requiring follow-up is explicitly NOT certified by
+this import: Resolve stamps role onboarding/verification values, role creation
+and relationship creation require stronger resource-level tenant checks, and
+cross-tenant participation transitions require explicit authority testing.
+Migration 2 contains historical backfill and destructive Down operations; it
+was imported as provenance, not executed or declared safe for a new environment.
+Do not treat these role flags as proof of independent KYC or credit approval.
+Run lifecycle PostgreSQL regressions and close authorization gaps before release.

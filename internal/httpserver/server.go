@@ -19,6 +19,7 @@ var safeValue = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,120}$`)
 
 func New(address, environment string, authDisabled bool, verifier auth.Verifier, ready readiness, store *party.Store, logger *slog.Logger) *http.Server {
 	mux := http.NewServeMux()
+	registerLifecycleRoutes(mux, authDisabled, store, logger)
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, map[string]string{"status": "ok", "service": "party-platform", "environment": environment})
 	})
@@ -59,6 +60,10 @@ func New(address, environment string, authDisabled bool, verifier auth.Verifier,
 			principal.Subject = "local-development"
 		}
 		out, err := store.Resolve(r.Context(), party.Command{ActorSubject: principal.Subject, CorrelationID: correlation}, in)
+		if err == party.ErrInvalidRole {
+			problem(w, 400, "invalid_role", "Party role or product is invalid.")
+			return
+		}
 		if err == party.ErrConflict {
 			problem(w, 409, "alias_conflict", "The alias already resolves to a different party type.")
 			return
