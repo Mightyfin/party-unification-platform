@@ -102,6 +102,9 @@ func TestLifecycleDatabaseRegression(t *testing.T) {
 	if result.EndedRole.Status != "ended" || result.ActivatedRole.PartyID != one.PartyID || result.ActivatedRole.TenantID != "direct" {
 		t.Fatal("incorrect transition", result)
 	}
+	if result.ActivatedRole.OnboardingStatus != "PENDING" || result.ActivatedRole.VerificationLevel != "UNVERIFIED" {
+		t.Fatal("transfer manufactured compliance approval")
+	}
 	var histories, events int
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM party_history`).Scan(&histories); err != nil {
 		t.Fatal(err)

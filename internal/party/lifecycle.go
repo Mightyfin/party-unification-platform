@@ -11,6 +11,7 @@ import (
 )
 
 var ErrInvalidTransition = errors.New("invalid lifecycle transition")
+var ErrVerificationEvidenceRequired = errors.New("verified compliance decision required")
 
 var validRoles = map[string]bool{"CUSTOMER": true, "PARTNER": true, "SUPPLIER": true, "EMPLOYEE": true, "AGENT": true, "INVESTOR_FUNDER": true, "REGULATOR": true}
 var validProducts = map[string]bool{"DIRECT_LENDING": true, "EMBEDDED_FINANCE": true, "EFAAS": true, "PAYMENTS": true, "WALLET": true, "INTERNAL": true, "EXTERNAL": true}
@@ -89,6 +90,12 @@ func ValidateRelationship(in RelationshipRequest) bool {
 func (s *Store) AssignRole(ctx context.Context, cmd Command, scope Scope, partyID string, in RoleRequest) (PartyRole, error) {
 	if !ValidateRole(in) || cmd.ActorSubject == "" {
 		return PartyRole{}, ErrInvalidTransition
+	}
+	// Business-role write authority does not confer compliance decision authority.
+	// Until a verified decision adapter is connected, only unassessed roles may
+	// be created here. Caller-supplied references are not verification evidence.
+	if in.OnboardingStatus != "PENDING" || in.VerificationLevel != "UNVERIFIED" {
+		return PartyRole{}, ErrVerificationEvidenceRequired
 	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -256,7 +263,7 @@ func (s *Store) TransitionParticipation(ctx context.Context, cmd Command, scope 
 	}
 	var activated PartyRole
 	id := newID("pro")
-	err = tx.QueryRow(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,consent_reference,eligibility_reference,created_by) SELECT $1,id,$2,$3,'CUSTOMER','EMBEDDED_FINANCE',$4,'DIRECT','APPROVED','PRODUCT_VERIFIED',$5,$6,$7 FROM parties WHERE public_id=$8 RETURNING public_id,$8,tenant_id,environment,role_type,product,classification,channel,status,onboarding_status,verification_level,consent_reference,eligibility_reference,effective_from,effective_to`, id, scope.TenantID, scope.Environment, in.TargetClassification, in.ConsentReference, in.EligibilityReference, cmd.ActorSubject, partyID).Scan(&activated.ID, &activated.PartyID, &activated.TenantID, &activated.Environment, &activated.RoleType, &activated.Product, &activated.Classification, &activated.Channel, &activated.Status, &activated.OnboardingStatus, &activated.VerificationLevel, &activated.ConsentReference, &activated.EligibilityReference, &activated.EffectiveFrom, &activated.EffectiveTo)
+	err = tx.QueryRow(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,consent_reference,eligibility_reference,created_by) SELECT $1,id,$2,$3,'CUSTOMER','EMBEDDED_FINANCE',$4,'DIRECT','PENDING','UNVERIFIED',$5,$6,$7 FROM parties WHERE public_id=$8 RETURNING public_id,$8,tenant_id,environment,role_type,product,classification,channel,status,onboarding_status,verification_level,consent_reference,eligibility_reference,effective_from,effective_to`, id, scope.TenantID, scope.Environment, in.TargetClassification, in.ConsentReference, in.EligibilityReference, cmd.ActorSubject, partyID).Scan(&activated.ID, &activated.PartyID, &activated.TenantID, &activated.Environment, &activated.RoleType, &activated.Product, &activated.Classification, &activated.Channel, &activated.Status, &activated.OnboardingStatus, &activated.VerificationLevel, &activated.ConsentReference, &activated.EligibilityReference, &activated.EffectiveFrom, &activated.EffectiveTo)
 	if err != nil {
 		return ParticipationTransition{}, err
 	}

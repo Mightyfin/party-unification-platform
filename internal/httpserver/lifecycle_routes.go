@@ -170,6 +170,8 @@ func lifecycleError(w http.ResponseWriter, r *http.Request, logger *slog.Logger,
 		problem(w, 404, "not_found", "The party resource was not found in this scope.")
 	case errors.Is(err, party.ErrTransferAuthority):
 		problem(w, 403, "transfer_authority_required", "This action requires explicit cross-programme authority.")
+	case errors.Is(err, party.ErrVerificationEvidenceRequired):
+		problem(w, 409, "verification_evidence_required", "Create the role as pending and unverified. Compliance decisions require separately verified evidence.")
 	case errors.Is(err, party.ErrConflict):
 		problem(w, 409, "conflict", "An active role or relationship already exists in this scope.")
 	case errors.Is(err, party.ErrInvalidTransition):

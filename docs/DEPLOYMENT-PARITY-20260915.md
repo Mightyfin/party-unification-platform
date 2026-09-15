@@ -95,3 +95,16 @@ This fixes resolution only. Explicit role assignment and participation transfer
 still need verification-evidence provenance controls before they can be treated
 as compliance decisions. They remain separate from lender approval and funding.
 No deployment or Green financial write is claimed by this change.
+
+Explicit role creation now fails with `verification_evidence_required` unless
+the requested state is `PENDING / UNVERIFIED`. Role-write permission and supplied
+reference strings are not compliance evidence. Fifteen other valid status/level
+combinations are tested to fail before storage. Authorised programme transfer
+still records and atomically changes the relationship, but its target role also
+starts pending/unverified; the PostgreSQL regression asserts this. Source
+history remains intact. All tests and vet pass.
+
+This is a fail-closed control, not completion of the compliance integration:
+publishing actual reviewed compliance decisions into Party remains an open
+capability requiring a verified source and audit linkage. Existing downstream
+KYC and lender approval controls must continue to be enforced independently.
