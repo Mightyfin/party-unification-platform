@@ -59,3 +59,24 @@ the previously over-broad path rather than granting new financial authority.
 Lifecycle requests also reject tenant/environment headers that contradict token
 claims. Full authorised transition PostgreSQL regression and verification-state
 provenance still need testing before deployment.
+
+## Database regression and primary-route scope checks
+
+The disposable PostgreSQL lifecycle regression now passes with both embedded
+migrations applied inside a rolled-back private schema. It exercises identity
+resolution retry, role suspension/reactivation, extra role assignment,
+relationship creation/suspension/reactivation/end, rejection of reopening an
+ended relationship, and authorised programme transfer. A wrong-party transfer
+rolls back the source-role change. Successful operations produce exactly eleven
+history records and eleven outbox records; rejected operations add neither.
+
+Primary identity lookup and resolution routes now share the lifecycle scope
+validation. Tests exercise the actual HTTP handler and prove that contradictory
+tenant/environment claims return 403 before storage; matching scoped callers and
+tenant-free service callers still reach input validation. Existing service
+delegation is preserved; this is not certification of every delegation policy.
+
+Validation: `go test ./...` with `PARTY_LOOKUP_TEST_DATABASE_URL` pointing to
+disposable PostgreSQL passed, as did `go vet ./...`. These changes are not yet
+deployed. Verification-state provenance, connected bank-account checks and the
+remaining Green financial lifecycle are still open; no Green data was changed.

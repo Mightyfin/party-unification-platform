@@ -33,9 +33,8 @@ func New(address, environment string, authDisabled bool, verifier auth.Verifier,
 		write(w, 200, map[string]string{"status": "ready"})
 	})
 	mux.HandleFunc("POST /v1/party-resolutions", func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := r.Context().Value(principalKey{}).(auth.Principal)
-		if !ok || (!authDisabled && !principal.HasScope("party.resolve")) {
-			problem(w, 403, "forbidden", "party.resolve scope is required.")
+		principal, scope, ok := authorizeLifecycle(w, r, authDisabled, "party.resolve")
+		if !ok {
 			return
 		}
 		var in party.ResolutionRequest
@@ -43,8 +42,8 @@ func New(address, environment string, authDisabled bool, verifier auth.Verifier,
 			problem(w, 400, "invalid_json", "Request body is invalid.")
 			return
 		}
-		in.TenantID = strings.TrimSpace(r.Header.Get("X-Acting-Tenant-Id"))
-		in.Environment = strings.TrimSpace(r.Header.Get("X-Acting-Environment"))
+		in.TenantID = scope.TenantID
+		in.Environment = scope.Environment
 		in.SourceSystem = strings.TrimSpace(in.SourceSystem)
 		in.ExternalReference = strings.TrimSpace(in.ExternalReference)
 		in.DisplayName = strings.TrimSpace(in.DisplayName)
@@ -83,13 +82,12 @@ func New(address, environment string, authDisabled bool, verifier auth.Verifier,
 		write(w, status, out)
 	})
 	mux.HandleFunc("GET /v1/parties/{party_id}", func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := r.Context().Value(principalKey{}).(auth.Principal)
-		if !ok || (!authDisabled && !principal.HasScope("party.read")) {
-			problem(w, 403, "forbidden", "party.read scope is required.")
+		_, scope, ok := authorizeLifecycle(w, r, authDisabled, "party.read")
+		if !ok {
 			return
 		}
-		tenantID := strings.TrimSpace(r.Header.Get("X-Acting-Tenant-Id"))
-		environment := strings.TrimSpace(r.Header.Get("X-Acting-Environment"))
+		tenantID := scope.TenantID
+		environment := scope.Environment
 		partyID := strings.TrimSpace(r.PathValue("party_id"))
 		if !safeValue.MatchString(tenantID) || !safeValue.MatchString(partyID) || (environment != "sandbox" && environment != "production") {
 			problem(w, 400, "validation_failed", "Party lookup fields are invalid.")
