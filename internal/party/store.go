@@ -57,6 +57,7 @@ type Resolution struct {
 // Record is the minimum identity evidence a downstream domain needs. It has no
 // identifiers, aliases, wallet balances or lending information.
 type Record struct {
+	ID          string `json:"id"` // compatibility for existing document consumers
 	PartyID     string `json:"party_id"`
 	PartyType   string `json:"party_type"`
 	DisplayName string `json:"display_name"`
@@ -76,11 +77,13 @@ WHERE p.public_id=$1
   AND (
     EXISTS (SELECT 1 FROM party_aliases a WHERE a.party_id=p.id AND a.tenant_id=$2 AND a.environment=$3 AND a.status='active')
     OR EXISTS (SELECT 1 FROM party_roles r WHERE r.party_id=p.id AND r.tenant_id=$2 AND r.environment=$3 AND r.status='active'
+               AND r.effective_from<=now()
                AND (r.effective_to IS NULL OR r.effective_to>now()))
   )`, partyID, tenantID, environment).Scan(&record.PartyID, &record.PartyType, &record.DisplayName, &record.Status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Record{}, ErrNotFound
 	}
+	if err == nil { record.ID = record.PartyID }
 	return record, err
 }
 
