@@ -87,11 +87,17 @@ func ValidateRelationship(in RelationshipRequest) bool {
 }
 
 func (s *Store) AssignRole(ctx context.Context, cmd Command, scope Scope, partyID string, in RoleRequest) (PartyRole, error) {
+	if !ValidateRole(in) || cmd.ActorSubject == "" {
+		return PartyRole{}, ErrInvalidTransition
+	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return PartyRole{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err = requireMembership(ctx, tx, scope, partyID); err != nil {
+		return PartyRole{}, err
+	}
 	id := newID("pro")
 	var out PartyRole
 	err = tx.QueryRow(ctx, `INSERT INTO party_roles(public_id,party_id,tenant_id,environment,role_type,product,classification,channel,onboarding_status,verification_level,consent_reference,eligibility_reference,created_by) SELECT $1,id,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,''),NULLIF($11,''),$12 FROM parties WHERE public_id=$13 RETURNING public_id,$13,tenant_id,environment,role_type,product,classification,channel,status,onboarding_status,verification_level,consent_reference,eligibility_reference,effective_from,effective_to`, id, scope.TenantID, scope.Environment, in.RoleType, in.Product, in.Classification, in.Channel, in.OnboardingStatus, in.VerificationLevel, in.ConsentReference, in.EligibilityReference, cmd.ActorSubject, partyID).Scan(&out.ID, &out.PartyID, &out.TenantID, &out.Environment, &out.RoleType, &out.Product, &out.Classification, &out.Channel, &out.Status, &out.OnboardingStatus, &out.VerificationLevel, &out.ConsentReference, &out.EligibilityReference, &out.EffectiveFrom, &out.EffectiveTo)
@@ -150,7 +156,7 @@ func (s *Store) ChangeRole(ctx context.Context, cmd Command, scope Scope, roleID
 	return out, tx.Commit(ctx)
 }
 func (s *Store) CreateRelationship(ctx context.Context, cmd Command, scope Scope, fromPartyID string, in RelationshipRequest) (Relationship, error) {
-	if fromPartyID == in.ToPartyID {
+	if fromPartyID == in.ToPartyID || !ValidateRelationship(in) || cmd.ActorSubject == "" {
 		return Relationship{}, ErrInvalidTransition
 	}
 	tx, err := s.db.Begin(ctx)
@@ -158,6 +164,9 @@ func (s *Store) CreateRelationship(ctx context.Context, cmd Command, scope Scope
 		return Relationship{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err = requireMembership(ctx, tx, scope, fromPartyID, in.ToPartyID); err != nil {
+		return Relationship{}, err
+	}
 	id := newID("prl")
 	var out Relationship
 	err = tx.QueryRow(ctx, `INSERT INTO party_relationships(public_id,from_party_id,to_party_id,relationship_type,classification,tenant_id,environment,created_by) SELECT $1,f.id,t.id,$2,$3,$4,$5,$6 FROM parties f,parties t WHERE f.public_id=$7 AND t.public_id=$8 RETURNING public_id,$7,$8,tenant_id,environment,relationship_type,classification,status,effective_from,effective_to`, id, in.RelationshipType, in.Classification, scope.TenantID, scope.Environment, cmd.ActorSubject, fromPartyID, in.ToPartyID).Scan(&out.ID, &out.FromPartyID, &out.ToPartyID, &out.TenantID, &out.Environment, &out.RelationshipType, &out.Classification, &out.Status, &out.EffectiveFrom, &out.EffectiveTo)

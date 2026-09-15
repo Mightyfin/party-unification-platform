@@ -39,3 +39,12 @@ Migration 2 contains historical backfill and destructive Down operations; it
 was imported as provenance, not executed or declared safe for a new environment.
 Do not treat these role flags as proof of independent KYC or credit approval.
 Run lifecycle PostgreSQL regressions and close authorization gaps before release.
+
+Role assignment and relationship creation now require existing active scoped
+membership (alias or currently effective role) for every affected party. The
+write transaction locks the membership evidence and rejects restricted/closed
+identities. A disposable PostgreSQL test proves foreign-tenant role creation and
+relationship creation stop before insertion, and checks environment, restricted
+identity, inactive alias and future-role rejection. Domain entry points also
+validate request type and actor, not only HTTP handlers. Cross-tenant transition
+authority and onboarding/verification provenance remain separate open checks.
